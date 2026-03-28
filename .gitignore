@@ -9,4 +9,3 @@ notebooks/
 .DS_Store
 *.code-workspace
 *.ipynb
-*.md
