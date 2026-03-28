@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+data/
+notebooks/
+*.pth
+*.pt
+.DS_Store
+*.code-workspace
+*.ipynb
+*.md
