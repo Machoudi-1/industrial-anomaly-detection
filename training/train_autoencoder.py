@@ -1,12 +1,14 @@
 # IMPORTS
 import logging
 import os
+from datetime import datetime
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
 from datasets.mvtec import MvtecAdDataset
 from models.autoencoder import AutoEncoder
+from models.autoencoder_v2 import AutoEncoderV2
 from src.config import DATA_DIR, CATEGORY, BATCH_SIZE, EPOCHS, LEARNING_RATE
 from utils.normalization import preprocess_image
 from visualization.heatmap import plot_loss
@@ -43,7 +45,7 @@ train_loader = DataLoader(
     shuffle=True,
 )
 # MODEL
-model = AutoEncoder().to(DEVICE)
+model = AutoEncoderV2().to(DEVICE)
 
 # OPTIMISATION
 loss_fn = nn.MSELoss()
@@ -105,10 +107,18 @@ def main() -> None:
         loss_history.append(epoch_loss)
         LOGGER.info("Epoch %d/%d - Mean Loss: %.6f", epoch + 1, EPOCHS, epoch_loss)
 
-    os.makedirs("models/checkpoints", exist_ok=True)
-    torch.save(model.state_dict(), "models/checkpoints/autoencoder.pth")
-    LOGGER.info("Model saved to autoencoder.pth")
+    # timestamp
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+    # Folder
+    output_dir = "models/checkpoints"
+    os.makedirs(output_dir, exist_ok=True)
+
+    model_path = f"{output_dir}/{now]_autoencoder.pth"
+
+    torch.save(model.state_dict(), model_path)
+
+    LOGGER.info("Model saved to %s", model_path)
     plot_loss(loss_history)
 
 
