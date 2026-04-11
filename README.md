@@ -1,53 +1,69 @@
-#  Anomaly Detection with Autoencoder (MVTec AD)
+# Industrial Anomaly Detection (MVTec AD)
 
-##  Project Overview
+## Project Overview
 
-This project focuses on **unsupervised anomaly detection** using an **autoencoder** trained on the MVTec AD dataset.
+This project explores **unsupervised anomaly detection** methods for industrial inspection using the **MVTec AD dataset**.
 
-The objective is to detect defects in industrial images by learning to reconstruct normal samples and identifying anomalies through reconstruction errors.
+Two main approaches are investigated:
 
----
+- **Reconstruction-based methods** (Autoencoders)
+- **Feature-based methods** (PatchCore-inspired pipeline)
 
-## 📂 Dataset
-
-* Dataset: **MVTec Anomaly Detection**
-* Category used: `capsule`
-* Training: only **normal images**
-* Testing: **normal + anomalous images**
+The goal is to understand their behavior, compare their performance, and build a robust anomaly detection system.
 
 ---
 
-##  Methodology
+## Dataset
 
-### 1. Model
+- Dataset: **MVTec Anomaly Detection**
+- Categories evaluated:
+  - `capsule`
+  - `bottle`
+  - `screw`
 
-A convolutional **Autoencoder** is trained to reconstruct input images.
-
-* Input: RGB images (resized)
-* Loss: Mean Squared Error (MSE)
-* Training: 30 epochs
-
----
-
-### 2. Anomaly Scoring
-
-We evaluate different strategies to convert reconstruction errors into anomaly scores:
-
-* **Mean error** (global average)
-* **Max error** (maximum pixel error)
-* **Top-k mean error** (average of highest k% errors)
+Training is performed using **only normal samples**.  
+Testing includes **both normal and anomalous images**.
 
 ---
 
-### 3. Evaluation
+##  Methods
 
-* Score distributions (train / test normal / anomalies)
-* ROC Curve
-* AUROC metric
+### 1. Autoencoder
+
+Two architectures were implemented:
+
+- **Autoencoder V1**: simple convolutional model
+- **Autoencoder V2**: deeper encoder + upsampling decoder
+
+#### Anomaly scoring:
+- Mean error
+- Max error
+- Top-k mean error
 
 ---
 
-##  Results
+### 2. PatchCore (Feature-based)
+
+A simplified **PatchCore pipeline** was implemented using a pretrained **ResNet18**.
+
+#### Pipeline:
+
+1. Feature extraction (CNN backbone)
+2. Patch embedding extraction
+3. Memory bank (normal features)
+4. Nearest neighbor search
+5. Anomaly maps + image-level scores
+
+#### Improvements:
+- Multi-scale features (**layer2 + layer3**)
+- Coreset sampling (random / greedy)
+- Visualization (heatmaps + overlays)
+
+---
+
+## Results
+
+### Autoencoder (Capsule category)
 
 | Method     | AUROC |
 | ---------- | ----- |
@@ -57,56 +73,75 @@ We evaluate different strategies to convert reconstruction errors into anomaly s
 
 ---
 
-##  Analysis
+### PatchCore
 
-* The autoencoder successfully reconstructs the **global structure** of images.
-* However, it also reconstructs **anomalies**, reducing discrimination power.
-* Global averaging (mean) dilutes local defects.
-* Top-k scoring improves results slightly but remains insufficient.
+#### Capsule
+- Significant improvement over autoencoder
 
- **Key insight**:
-The limitation comes from the **model capacity**, not only from the scoring method.
+#### Bottle
+- Mean: **0.9857**
+- Max: **0.9992**
+- Top-k: **1.0000**
 
----
-
-##  Limitations
-
-* Simple autoencoder generalizes too well
-* Poor sensitivity to small/local anomalies
-* Reconstruction-based methods struggle with subtle defects
+#### Screw
+- Mean: **0.8225**
+- Max: **0.9746**
+- Top-k: **0.9813**
 
 ---
 
-##  Future Improvements
+## Key Insights
 
-* Improve architecture (e.g., UNet-like autoencoder)
-* Use perceptual losses (SSIM)
-* Try state-of-the-art methods:
-
-  * PatchCore
-  * PaDiM
-  * FastFlow
+### 1. Autoencoder limitations
+- Good global reconstruction
+- Poor local anomaly detection
+- Reconstruction quality ≠ detection performance
 
 ---
 
-##  Tech Stack
-
-* Python
-* PyTorch
-* NumPy / Matplotlib
-* Scikit-learn (ROC, AUROC)
+### 2. PatchCore strengths
+- Strong performance on all tested categories
+- Excellent detection of localized anomalies
+- Robust to complex textures
 
 ---
 
-##  Key Takeaways
+### 3. Importance of scoring strategy
+- Mean → weak (dilutes anomalies)
+- Max → strong
+- Top-k → best trade-off
 
-* Reconstruction quality ≠ anomaly detection performance
-* Scoring strategy matters, but model design is critical
-* Local anomaly detection requires specialized approaches
+---
+
+### 4. Category-dependent difficulty
+- `bottle` → easy (simple structure)
+- `screw` → harder (fine details, textures)
+
+---
+
+## Future Work
+
+- Evaluate all MVTec categories
+- PCA / t-SNE analysis of embeddings
+- Improve PatchCore (better coreset, normalization)
+- Implement other methods:
+  - PaDiM
+  - FastFlow
+- Build a **Streamlit demo** for interactive anomaly detection
+
+---
+
+## Tech Stack
+
+- Python
+- PyTorch
+- torchvision
+- NumPy / Matplotlib
+- Scikit-learn
 
 ---
 
 ## Author
 
-Machoudi ADEGOUNTE
-Master’s student in Applied Mathematics & AI
+Machoudi ADEGOUNTE  
+Master’s student in Applied Mathematics, Data Science & AI
