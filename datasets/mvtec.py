@@ -91,6 +91,8 @@ class MvtecAdDataset(Dataset):
 
         # transform the image into a tensor
         image = decode_image(image_path)
+        if image.shape[0] == 1:
+            image = image.repeat(3, 1, 1)
         if self.transform is not None:
             image = self.transform(image)
 
