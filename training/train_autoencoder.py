@@ -114,7 +114,7 @@ def main() -> None:
     output_dir = "models/checkpoints"
     os.makedirs(output_dir, exist_ok=True)
 
-    model_path = f"{output_dir}/{now]_autoencoder.pth"
+    model_path = f"{output_dir}/{now}_autoencoder.pth"
 
     torch.save(model.state_dict(), model_path)
 
