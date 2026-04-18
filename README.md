@@ -26,7 +26,7 @@ Testing includes **both normal and anomalous images**.
 
 ---
 
-##  Methods
+## Methods
 
 ### 1. Autoencoder
 
@@ -90,43 +90,125 @@ A simplified **PatchCore pipeline** was implemented using a pretrained **ResNet1
 
 ---
 
-## Key Insights
+## Feature Space Analysis (PCA & t-SNE)
 
-### 1. Autoencoder limitations
-- Good global reconstruction
-- Poor local anomaly detection
-- Reconstruction quality ≠ detection performance
+To better understand how each method represents the data, we analyzed the learned feature spaces using **PCA (global structure)** and **t-SNE (local structure)**.
 
----
+### Objective
 
-### 2. PatchCore strengths
-- Strong performance on all tested categories
-- Excellent detection of localized anomalies
-- Robust to complex textures
+The goal of this analysis is **not to directly separate anomalies**, but to:
+
+- Evaluate the **structure of the feature space**
+- Assess **generalization (train vs test)**
+- Understand whether anomalies create **local deviations**
 
 ---
 
-### 3. Importance of scoring strategy
-- Mean → weak (dilutes anomalies)
-- Max → strong
-- Top-k → best trade-off
+## PatchCore Feature Space
+
+### Observations
+
+#### PCA (Global structure)
+
+- The feature space is **well-structured**
+- Training and test samples follow a **similar global distribution**
+- Multiple **sub-clusters** appear, corresponding to different visual patterns
+- Anomalies are **not globally separated**, but remain embedded in the same structure
+
+#### t-SNE (Local structure)
+
+- Clear **local clusters** are visible
+- Each cluster corresponds to **specific image patterns or regions**
+- Anomalies are **mixed within clusters**, but tend to appear as **local deviations**
+
+#### Score Distribution
+
+- Strong separation between:
+  - **Normal samples → low scores**
+  - **Anomalies → higher scores**
+- Minimal overlap between the two distributions
+- Confirms high anomaly detection performance
 
 ---
 
-### 4. Category-dependent difficulty
-- `bottle` → easy (simple structure)
-- `screw` → harder (fine details, textures)
+### Interpretation
+
+- The feature extractor learns a **rich and structured representation**
+- The model generalizes well to unseen data
+- **Anomaly detection is not based on global separation**, but on:
+
+> **local distance to normal patterns (nearest neighbors)**
+
+---
+
+### Hypothesis
+
+> A well-structured feature space enables effective anomaly detection, even without explicit separation between normal and anomalous samples.
+
+---
+
+## Autoencoder Feature Space
+
+### Observations
+
+#### PCA
+
+- The latent space is **diffuse and poorly structured**
+- No clear clustering or organization
+- Test samples do not align clearly with training distribution
+
+#### t-SNE
+
+- No meaningful clusters emerge
+- Data points are scattered randomly
+- No clear pattern differentiation
+
+#### Score Distribution
+
+- Strong overlap between normal and anomalous samples
+- Poor separability
+- Low AUROC
+
+---
+
+### Interpretation
+
+- The autoencoder fails to learn a **discriminative representation**
+- It focuses on **global reconstruction**, not fine details
+- Anomalies are often **reconstructed**, reducing detection ability
+
+---
+
+### Hypothesis
+
+> Reconstruction-based methods struggle to detect subtle anomalies because they tend to generalize and reconstruct both normal and abnormal patterns.
+
+---
+
+## Comparative Insight
+
+| Property                | Autoencoder | PatchCore |
+|------------------------|------------|----------|
+| Feature structure      | Diffuse     | Structured |
+| Local clusters         | No          | Yes |
+| Generalization         | Weak        | Strong |
+| Anomaly separation     | Poor        | Strong (via scores) |
+| Detection mechanism    | Reconstruction | Nearest neighbor |
+
+---
+
+## Key Takeaway
+
+> **A structured feature space is more important than reconstruction quality for anomaly detection.**
+
+PatchCore succeeds because it leverages **local feature consistency**, while autoencoders fail due to **over-generalization**.
 
 ---
 
 ## Future Work
 
 - Evaluate all MVTec categories
-- PCA / t-SNE analysis of embeddings
-- Improve PatchCore (better coreset, normalization)
-- Implement other methods:
-  - PaDiM
-  - FastFlow
+- Optimize PatchCore (better coreset, normalization, FAISS)
 - Build a **Streamlit demo** for interactive anomaly detection
 
 ---
