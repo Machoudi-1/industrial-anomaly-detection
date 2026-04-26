@@ -1,11 +1,23 @@
+# Python
 __pycache__/
 *.pyc
+
+# Environments
 .venv/
+
+# Jupyter
 .ipynb_checkpoints/
+exploration.ipynb
+
+# Data & Outputs
 data/
 outputs/
+
+# models/ weights
 *.pth
 *.pt
+
+# OS/editor 
 .DS_Store
 *.code-workspace
-exploration.ipynb
+
