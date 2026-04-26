@@ -1,3 +1,19 @@
+"""
+patchcore.py
+------------
+PatchCore anomaly detection pipeline.
+
+Components:
+    - FeatureExtractor         : single-scale ResNet18 features (layer3)
+    - MultiScaleFeatureExtractor: fused layer2 + layer3 features
+    - extract_patch_embeddings : feature map → patch matrix
+    - build_memory_bank        : build normal patch reference from train set
+    - compute_patchwise_distances: nearest-neighbor distances (chunked, OOM-safe)
+    - patch_distances_to_maps  : flat distances → spatial anomaly maps
+    - random_coreset_sampling  : random subset of the memory bank
+    - greedy_coreset_sampling  : k-center coreset (better coverage)
+"""
+
 import torch
 from torch import nn
 from torchvision.models import resnet18, ResNet18_Weights
@@ -6,6 +22,7 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 
+# Feature extractors
 class FeatureExtractor(nn.Module):
     """
     Feature extractor based on a pretrained ResNet18 backbone.
@@ -177,30 +194,62 @@ def build_memory_bank(
     return memory_bank
 
 
-# Similarity search
+# Nearest-neighbor distances (chunked)
 def compute_patchwise_distances(
     test_patches: torch.Tensor,
     memory_bank: torch.Tensor,
+    chunk_size: int = 1024,
 ) -> torch.Tensor:
     """
-    Compute the anomaly score for each test patch by finding its nearest neighbor
-    in the memory bank.
+    Compute the nearest-neighbor distance from each test patch
+    to the memory bank, using chunked processing to avoid OOM.
+
+    Why chunked?
+        A naive torch.cdist(test, memory_bank) allocates a matrix of
+        shape (N_test, N_train). With N_test = N_train = 200k patches,
+        this requires ~26 GB of VRAM — far beyond a T4 GPU (15 GB).
+
+        Instead, we split test_patches into chunks of `chunk_size` rows,
+        compute distances for each chunk independently, take the minimum
+        distance to the memory bank per patch, then free the intermediate
+        tensor. Peak VRAM usage is proportional to chunk_size × N_train,
+        not N_test × N_train.
 
     Args:
-        test_patches (torch.Tensor): Tensor of shape (N_test, C)
-        memory_bank (torch.Tensor): Tensor of shape (N_train, C)
+        test_patches (torch.Tensor): Shape (N_test, C). Can be on CPU or GPU.
+        memory_bank (torch.Tensor): Shape (N_train, C). Moved to GPU internally.
+        chunk_size (int): Number of test patches processed per chunk.
+            Lower values use less VRAM. Defaults to 1024.
 
     Returns:
-        torch.Tensor: Minimum distances of shape (N_test,)
+        torch.Tensor: Minimum distances of shape (N_test,), on CPU.
     """
+    # Move memory bank to GPU once — stays there for all chunks
+    memory_bank_gpu = memory_bank.cuda() if torch.cuda.is_available() else memory_bank
 
-    # Compute pairwise distances
-    distances = torch.cdist(test_patches, memory_bank, p=2)
+    min_distances: list[torch.Tensor] = []
 
-    # For each test patch, take the minimum distance
-    min_distances = distances.min(dim=1).values
+    for start in range(0, test_patches.shape[0], chunk_size):
+        chunk = test_patches[start : start + chunk_size]
 
-    return min_distances
+        # Move chunk to same device as memory bank
+        chunk = chunk.to(memory_bank_gpu.device)
+
+        # (chunk_size, N_train) distance matrix
+        dists = torch.cdist(chunk, memory_bank_gpu, p=2)
+
+        # Keep only the minimum distance per test patch
+        min_dists = dists.min(dim=1).values
+
+        min_distances.append(min_dists.cpu())
+
+        # Free intermediate tensors immediately
+        del chunk, dists
+
+    return torch.cat(min_distances, dim=0)
+
+
+#  Anomaly maps
 
 
 def patch_distances_to_maps(
@@ -224,6 +273,7 @@ def patch_distances_to_maps(
     return patch_distances.view(batch_size, height, width)
 
 
+#  Coreset sampling
 def random_coreset_sampling(
     memory_bank: torch.Tensor,
     sampling_ratio: float = 0.1,
@@ -263,55 +313,52 @@ def greedy_coreset_sampling(
     """
     Greedy coreset sampling using a k-center approximation.
 
+    Produces a more representative subset than random sampling by
+    iteratively selecting the patch that is farthest from the
+    already-selected set (max-min criterion).
+
+    A pre-sampling step first draws a random subset to make the
+    greedy search tractable on large memory banks.
+
     Args:
-        memory_bank (torch.Tensor): Full memory bank (N, C)
-        sampling_ratio (float): Final fraction to keep
-        pre_sample_ratio (float): Fraction for initial random subset
-        seed (int): Random seed
+        memory_bank (torch.Tensor): Full memory bank of shape (N, C).
+        sampling_ratio (float): Final fraction to keep, in ]0, 1].
+        pre_sample_ratio (float): Fraction for the initial random pre-sample.
+        seed (int): Random seed for reproducibility.
 
     Returns:
-        torch.Tensor: Coreset (N_sampled, C)
+        torch.Tensor: Coreset of shape (N_sampled, C).
     """
     if not (0 < sampling_ratio <= 1):
-        raise ValueError("sampling_ratio must be in ]0,1]")
+        raise ValueError("sampling_ratio must be in ]0, 1].")
     if not (0 < pre_sample_ratio <= 1):
-        raise ValueError("pre_sample_ratio must be in ]0,1]")
+        raise ValueError("pre_sample_ratio must be in ]0, 1].")
 
     N = memory_bank.size(0)
-
-    # Step 1 — pre-sampling (to reduce cost)
-    pre_sample_size = int(N * pre_sample_ratio)
 
     generator = torch.Generator(device=memory_bank.device)
     generator.manual_seed(seed)
 
-    indices = torch.randperm(N, generator=generator)[:pre_sample_size]
+    # Step 1 — random pre-sample to reduce search space
+    pre_size = int(N * pre_sample_ratio)
+    indices = torch.randperm(N, generator=generator)[:pre_size]
     subset = memory_bank[indices]
 
-    # Step 2 — greedy selection
-    num_select = int(N * sampling_ratio)
+    # Step 2 — greedy k-center selection
+    n_select = int(N * sampling_ratio)
+    selected: list[int] = []
 
-    # Initialize
-    selected_indices = []
-
-    # pick random first point
     first_idx = torch.randint(0, subset.size(0), (1,), generator=generator).item()
-    selected_indices.append(first_idx)
+    selected.append(first_idx)
 
-    selected = subset[first_idx].unsqueeze(0)
+    # Distance from each point to the nearest selected point
+    distances = torch.cdist(subset, subset[first_idx].unsqueeze(0)).squeeze(1)
 
-    # distances to selected set
-    distances = torch.cdist(subset, selected).squeeze(1)
-
-    for _ in range(num_select - 1):
+    for _ in range(n_select - 1):
         idx = torch.argmax(distances).item()
-        selected_indices.append(idx)
+        selected.append(idx)
 
-        new_point = subset[idx].unsqueeze(0)
+        new_dists = torch.cdist(subset, subset[idx].unsqueeze(0)).squeeze(1)
+        distances = torch.minimum(distances, new_dists)
 
-        # update distances (min distance to selected set)
-        new_dist = torch.cdist(subset, new_point).squeeze(1)
-        distances = torch.minimum(distances, new_dist)
-
-    coreset = subset[selected_indices]
-    return coreset
+    return subset[selected]

@@ -8,6 +8,7 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 exploration.ipynb
+notebooks/.ipynb_checkpoints/
 
 # Data & Outputs
 data/
