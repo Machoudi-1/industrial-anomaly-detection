@@ -27,7 +27,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from datasets.mvtec import MvtecAdDataset
+from mvtec_dataset.mvtec import MvtecAdDataset
 from models.autoencoder import AutoEncoder
 from models.autoencoder_v2 import AutoEncoderV2
 from src.config import (
