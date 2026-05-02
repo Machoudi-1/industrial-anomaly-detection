@@ -3,18 +3,23 @@ prepare_memory_banks.py
 -----------------------
 Precompute normalized + greedy coreset memory banks for all categories.
 
-Run this script ONCE after the benchmark to prepare the memory banks
-for the Streamlit app. The app then loads directly from outputs/memory_banks/ready/
-with no waiting time.
+Run this script ONCE to prepare memory banks for the Streamlit app.
+The app loads directly from the ready/ directory with no waiting time.
 
-Usage:
+Usage (local):
     poetry run python scripts/prepare_memory_banks.py
 
-    # Custom coreset ratio
-    poetry run python scripts/prepare_memory_banks.py --coreset-ratio 0.15
+Usage (Colab — custom paths):
+    python scripts/prepare_memory_banks.py \\
+        --input-dir /content/drive/MyDrive/anomaly_outputs/memory_banks \\
+        --output-dir /content/drive/MyDrive/anomaly_outputs/memory_banks/ready
 
-    # Single category
-    poetry run python scripts/prepare_memory_banks.py --category capsule
+Options:
+    --input-dir       Directory containing raw memory bank .pt files
+    --output-dir      Directory where ready banks will be saved
+    --coreset-ratio   Fraction of patches to keep (default: 0.1)
+    --pre-sample-ratio Pre-sampling ratio for greedy search (default: 0.1)
+    --category        Process a single category only
 """
 
 import argparse
@@ -30,9 +35,6 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from models.patchcore import greedy_coreset_sampling
-
-MEMORY_BANK_DIR = ROOT / "outputs" / "memory_banks"
-READY_DIR = ROOT / "outputs" / "memory_banks" / "ready"
 
 ALL_CATEGORIES = [
     "bottle",
@@ -55,6 +57,8 @@ ALL_CATEGORIES = [
 
 def prepare_category(
     category: str,
+    input_dir: Path,
+    output_dir: Path,
     coreset_ratio: float,
     pre_sample_ratio: float,
 ) -> bool:
@@ -65,15 +69,12 @@ def prepare_category(
         1. Find the most recent memory bank .pt file for this category
         2. L2 normalize all embeddings
         3. Apply greedy k-center coreset sampling
-        4. Save the result to outputs/memory_banks/ready/
+        4. Save the result to output_dir/
 
     Returns True if successful, False if memory bank not found.
     """
     pattern = f"*_{category}_multiscale.pt"
-    matches = list(MEMORY_BANK_DIR.glob(pattern))
-
-    # Skip already-prepared files in ready/
-    matches = [m for m in matches if "ready" not in str(m)]
+    matches = [p for p in input_dir.glob(pattern) if "ready" not in str(p)]
 
     if not matches:
         print(f"  [{category}] WARNING — no memory bank found, skipping.")
@@ -101,13 +102,14 @@ def prepare_category(
     )
     elapsed = time.time() - t0
     print(
-        f"  [{category}] Greedy coreset done — "
-        f"{coreset.shape[0]:,} patches ({coreset_ratio*100:.0f}% of {full_size:,}) "
+        f"  [{category}] Greedy coreset — "
+        f"{coreset.shape[0]:,} patches "
+        f"({coreset_ratio*100:.0f}% of {full_size:,}) "
         f"in {elapsed:.1f}s"
     )
 
     # Step 3 — Save
-    output_path = READY_DIR / f"{category}_ready.pt"
+    output_path = output_dir / f"{category}_ready.pt"
     torch.save(
         {
             "category": category,
@@ -120,13 +122,31 @@ def prepare_category(
         },
         output_path,
     )
-    print(f"  [{category}] Saved to {output_path.relative_to(ROOT)}")
+    print(f"  [{category}] Saved → {output_path}")
     return True
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Precompute normalized greedy coreset memory banks for the Streamlit app."
+        description="Precompute normalized greedy coreset memory banks."
+    )
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory containing raw memory bank .pt files. "
+            "Default: <repo_root>/outputs/memory_banks"
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Directory where ready banks will be saved. "
+            "Default: <repo_root>/outputs/memory_banks/ready"
+        ),
     )
     parser.add_argument(
         "--coreset-ratio",
@@ -137,32 +157,43 @@ def main() -> None:
     parser.add_argument(
         "--pre-sample-ratio",
         type=float,
-        default=0.2,
-        help="Pre-sampling ratio for greedy coreset (default: 0.2).",
+        default=0.1,
+        help="Pre-sampling ratio for greedy coreset (default: 0.1).",
     )
     parser.add_argument(
         "--category",
         type=str,
         default=None,
         choices=ALL_CATEGORIES,
-        help="Process a single category (default: all categories).",
+        help="Process a single category only (default: all).",
     )
     args = parser.parse_args()
 
-    READY_DIR.mkdir(parents=True, exist_ok=True)
+    # Resolve paths
+    input_dir = args.input_dir or (ROOT / "outputs" / "memory_banks")
+    output_dir = args.output_dir or (ROOT / "outputs" / "memory_banks" / "ready")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     categories = [args.category] if args.category else ALL_CATEGORIES
 
-    print(f"\nPreparing memory banks — coreset {args.coreset_ratio*100:.0f}%")
-    print(f"Output dir: {READY_DIR.relative_to(ROOT)}")
-    print(f"Categories: {categories}\n")
+    print(f"\nPreparing memory banks")
+    print(f"  Input  : {input_dir}")
+    print(f"  Output : {output_dir}")
+    print(
+        f"  Coreset: {args.coreset_ratio*100:.0f}% (pre-sample {args.pre_sample_ratio*100:.0f}%)"
+    )
+    print(f"  Categories: {categories}\n")
 
     success, skipped = 0, 0
+    total_t0 = time.time()
 
     for category in tqdm(categories, desc="Preparing", unit="category"):
         print()
         ok = prepare_category(
             category=category,
+            input_dir=input_dir,
+            output_dir=output_dir,
             coreset_ratio=args.coreset_ratio,
             pre_sample_ratio=args.pre_sample_ratio,
         )
@@ -171,9 +202,10 @@ def main() -> None:
         else:
             skipped += 1
 
-    print(f"\nDone — {success} prepared, {skipped} skipped.")
-    print(f"Ready banks saved in: {READY_DIR.relative_to(ROOT)}")
-    print("\nYou can now launch the app:")
+    total_elapsed = time.time() - total_t0
+    print(f"\nDone in {total_elapsed:.1f}s — {success} prepared, {skipped} skipped.")
+    print(f"Ready banks: {output_dir}")
+    print("\nLaunch the app:")
     print("  poetry run streamlit run app/app.py")
 
 
