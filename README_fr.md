@@ -230,8 +230,6 @@ Ouvrir `http://localhost:8501` dans votre navigateur.
 - **BAGAN** : Mariani et al., *BAGAN: Data Augmentation with Balancing GAN*, 2018.
 
 ---
-
 ## 👤 Auteur
 
-**Machoudi ADEGOUNTE** - M2 Mathématiques Appliquées, Université Toulouse III Paul Sabatier  
-Ingénieur R&D ML @ Pikairos | Candidat Doctorat
+**Machoudi ADEGOUNTE** — Mathématiques Appliquées & Machine Learning

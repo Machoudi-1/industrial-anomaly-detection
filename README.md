@@ -233,5 +233,4 @@ Then open `http://localhost:8501` in your browser.
 
 ## 👤 Author
 
-**Machoudi ADEGOUNTE** - M2 Applied Mathematics, Université Toulouse III Paul Sabatier  
-R&D ML Engineer @ Pikairos | PhD candidate
+**Machoudi ADEGOUNTE** — Applied Mathematics & Machine Learning 
