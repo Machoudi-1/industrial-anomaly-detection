@@ -1,4 +1,4 @@
-# 🔍 Industrial Anomaly Detection — PatchCore on MVTec AD
+# 🔍 Industrial Anomaly Detection - PatchCore on MVTec AD
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)
@@ -19,47 +19,47 @@ Unsupervised anomaly detection on industrial images using **PatchCore** (ResNet1
 
 ### How to use the app
 
-**Step 1 — Select a category**
+**Step 1 - Select a category**
 Choose the industrial part type from the dropdown (e.g. `bottle`, `capsule`, `screw`).
-The model is trained on that specific category — always match the category to your image.
+The model is trained on that specific category - always match the category to your image.
 
-**Step 2 — Upload one or more images**
+**Step 2 - Upload one or more images**
 You can upload **multiple images at once** (PNG, JPG, JPEG).
 Each image is analyzed independently and results are displayed one by one.
 
-**Step 3 — Read the results**
+**Step 3 - Read the results**
 Each image shows three panels:
-- **Original** — your uploaded image
-- **Anomaly heatmap** — red zones = high anomaly score, blue = normal
-- **Overlay** — heatmap overlaid on the original for easy localization
+- **Original** - your uploaded image
+- **Anomaly heatmap** - red zones = high anomaly score, blue = normal
+- **Overlay** - heatmap overlaid on the original for easy localization
 
-**Step 4 — Interpret the score and verdict**
-- **Anomaly score** — normalized value in [0, 1]. Higher = more likely defective.
-- **Verdict** — ✅ Normal or ❌ Defective based on the detection threshold.
-- **Detection threshold** — adjustable via the sidebar slider. Calibrated per category using the Youden index on the MVTec test set. Lower = more sensitive (more false positives). Higher = more conservative (more false negatives).
+**Step 4 - Interpret the score and verdict**
+- **Anomaly score** - normalized value in [0, 1]. Higher = more likely defective.
+- **Verdict** - ✅ Normal or ❌ Defective based on the detection threshold.
+- **Detection threshold** - adjustable via the sidebar slider. Calibrated per category using the Youden index on the MVTec test set. Lower = more sensitive (more false positives). Higher = more conservative (more false negatives).
 
-**Step 5 — Technical details**
+**Step 5 - Technical details**
 Expand the *Technical details* section to see:
 - Memory bank size (number of normal patches stored)
 - Coreset method (greedy k-center)
 - Embedding normalization (L2)
 - Raw anomaly score and inference time
 
-> ⚠️ **Important**: upload images that match the selected category. Uploading a bottle image while capsule is selected will produce unreliable results — the model has no reference for that part type.
+> ⚠️ **Important**: upload images that match the selected category. Uploading a bottle image while capsule is selected will produce unreliable results - the model has no reference for that part type.
 
 ---
 
 ## 🎯 Problem Statement
 
 Anomaly detection in industrial inspection is challenging because:
-- **Extreme class imbalance** — defective parts are rare (~1:1000 ratio)
+- **Extreme class imbalance** - defective parts are rare (~1:1000 ratio)
 - **No anomalous examples** at training time (one-class learning)
-- **Subtle defects** — pixel-thin cracks, scratches, color variations
-- **Complex backgrounds** — machining marks, repetitive textures
+- **Subtle defects** - pixel-thin cracks, scratches, color variations
+- **Complex backgrounds** - machining marks, repetitive textures
 
 This project compares two families of approaches on MVTec AD:
-- **Reconstruction-based** — Convolutional Autoencoders (V1, V2)
-- **Feature-based** — PatchCore with multiscale ResNet18 embeddings
+- **Reconstruction-based** - Convolutional Autoencoders (V1, V2)
+- **Feature-based** - PatchCore with multiscale ResNet18 embeddings
 
 ---
 
@@ -67,8 +67,8 @@ This project compares two families of approaches on MVTec AD:
 
 ### Autoencoder (Reconstruction-based)
 Train a CNN autoencoder on normal images only. At test time, high reconstruction error signals an anomaly. Two architectures compared:
-- **V1** — shallow encoder/decoder (3 conv layers)
-- **V2** — deeper architecture with upsampling decoder
+- **V1** - shallow encoder/decoder (3 conv layers)
+- **V2** - deeper architecture with upsampling decoder
 
 **Fundamental limit**: a model that reconstructs too well will also reconstruct anomalies, degrading detection.
 
@@ -82,7 +82,7 @@ Train a CNN autoencoder on normal images only. At test time, high reconstruction
 
 ## 📊 Results
 
-### Capsule category — method comparison
+### Capsule category - method comparison
 
 | Method | AUROC mean | AUROC max | AUROC topk |
 |--------|-----------|-----------|------------|
@@ -90,7 +90,7 @@ Train a CNN autoencoder on normal images only. At test time, high reconstruction
 | AE V2 (reconstruction) | 0.563 | 0.613 | 0.615 |
 | **PatchCore (feature-based)** | **0.876** | **0.941** | **0.938** |
 
-### PatchCore benchmark — all 15 MVTec categories
+### PatchCore benchmark - all 15 MVTec categories
 
 ![Benchmark AUROC](outputs/figures/benchmark_auroc_15categories.png)
 
@@ -111,7 +111,7 @@ Train a CNN autoencoder on normal images only. At test time, high reconstruction
 | transistor | 0.945 | 0.397 |
 | wood | 0.991 | 0.383 |
 | zipper | 0.944 | 0.327 |
-| **Mean** | **0.957** | — |
+| **Mean** | **0.957** | - |
 
 Thresholds computed using the **Youden index** (maximizes TPR − FPR on the test set).
 
@@ -148,8 +148,6 @@ industrial-anomaly-detection/
 │   └── 05_final_comparison.ipynb
 ├── outputs/
 │   ├── figures/                # Plots and visualizations
-│   ├── memory_banks/           # Raw memory banks (.pt)
-│   │   └── ready/              # Preprocessed coreset banks
 │   └── metrics/                # JSON results
 ├── pyproject.toml
 └── README.md
@@ -227,7 +225,7 @@ Then open `http://localhost:8501` in your browser.
 ## 📚 References
 
 - **PatchCore**: Roth et al., *Towards Total Recall in Industrial Anomaly Detection*, CVPR 2022. [arxiv](https://arxiv.org/abs/2106.08265)
-- **MVTec AD**: Bergmann et al., *MVTec AD — A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection*, CVPR 2019.
+- **MVTec AD**: Bergmann et al., *MVTec AD - A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection*, CVPR 2019.
 - **Focal Loss**: Lin et al., *Focal Loss for Dense Object Detection*, ICCV 2017.
 - **BAGAN**: Mariani et al., *BAGAN: Data Augmentation with Balancing GAN*, 2018.
 
@@ -235,5 +233,5 @@ Then open `http://localhost:8501` in your browser.
 
 ## 👤 Author
 
-**Machoudi ADEGOUNTE** — M2 Applied Mathematics, Université Toulouse III Paul Sabatier  
+**Machoudi ADEGOUNTE** - M2 Applied Mathematics, Université Toulouse III Paul Sabatier  
 R&D ML Engineer @ Pikairos | PhD candidate

@@ -1,4 +1,4 @@
-# 🔍 Détection d'Anomalies Industrielles — PatchCore sur MVTec AD
+# 🔍 Détection d'Anomalies Industrielles - PatchCore sur MVTec AD
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)
@@ -19,47 +19,47 @@ Détection d'anomalies non supervisée sur des images industrielles avec **Patch
 
 ### Comment utiliser l'application
 
-**Étape 1 — Sélectionner une catégorie**
+**Étape 1 - Sélectionner une catégorie**
 Choisissez le type de pièce industrielle dans le menu déroulant (ex. `bottle`, `capsule`, `screw`).
-Le modèle est entraîné sur cette catégorie spécifique — faites toujours correspondre la catégorie à votre image.
+Le modèle est entraîné sur cette catégorie spécifique - faites toujours correspondre la catégorie à votre image.
 
-**Étape 2 — Uploader une ou plusieurs images**
+**Étape 2 - Uploader une ou plusieurs images**
 Vous pouvez uploader **plusieurs images à la fois** (PNG, JPG, JPEG).
 Chaque image est analysée indépendamment et les résultats s'affichent l'un après l'autre.
 
-**Étape 3 — Lire les résultats**
+**Étape 3 - Lire les résultats**
 Chaque image affiche trois panneaux :
-- **Original** — votre image uploadée
-- **Carte d'anomalie** — zones rouges = score d'anomalie élevé, bleu = normal
-- **Overlay** — carte d'anomalie superposée à l'original pour localiser le défaut
+- **Original** - votre image uploadée
+- **Carte d'anomalie** - zones rouges = score d'anomalie élevé, bleu = normal
+- **Overlay** - carte d'anomalie superposée à l'original pour localiser le défaut
 
-**Étape 4 — Interpréter le score et le verdict**
-- **Score d'anomalie** — valeur normalisée dans [0, 1]. Plus élevé = plus probablement défectueux.
-- **Verdict** — ✅ Normal ou ❌ Défectueux selon le seuil de détection.
-- **Seuil de détection** — ajustable via le slider dans la sidebar. Calibré par catégorie via l'indice de Youden sur le dataset test MVTec. Plus bas = plus sensible (plus de faux positifs). Plus haut = plus conservateur (plus de faux négatifs).
+**Étape 4 - Interpréter le score et le verdict**
+- **Score d'anomalie** - valeur normalisée dans [0, 1]. Plus élevé = plus probablement défectueux.
+- **Verdict** - ✅ Normal ou ❌ Défectueux selon le seuil de détection.
+- **Seuil de détection** - ajustable via le slider dans la sidebar. Calibré par catégorie via l'indice de Youden sur le dataset test MVTec. Plus bas = plus sensible (plus de faux positifs). Plus haut = plus conservateur (plus de faux négatifs).
 
-**Étape 5 — Détails techniques**
+**Étape 5 - Détails techniques**
 Dépliez la section *Technical details* pour voir :
 - Taille de la memory bank (nombre de patches normaux stockés)
 - Méthode de coreset (greedy k-center)
 - Normalisation des embeddings (L2)
 - Score brut et temps d'inférence
 
-> ⚠️ **Important** : uploadez des images correspondant à la catégorie sélectionnée. Uploader une image de bouteille avec la catégorie capsule sélectionnée produira des résultats non fiables — le modèle n'a pas de référence pour ce type de pièce.
+> ⚠️ **Important** : uploadez des images correspondant à la catégorie sélectionnée. Uploader une image de bouteille avec la catégorie capsule sélectionnée produira des résultats non fiables - le modèle n'a pas de référence pour ce type de pièce.
 
 ---
 
 ## 🎯 Problématique
 
 La détection d'anomalies en inspection industrielle est difficile pour plusieurs raisons :
-- **Déséquilibre de classes extrême** — les pièces défectueuses sont rares (~ratio 1:1000)
+- **Déséquilibre de classes extrême** - les pièces défectueuses sont rares (~ratio 1:1000)
 - **Pas d'exemples anormaux** à l'entraînement (apprentissage one-class)
-- **Défauts subtils** — fissures pixel-minces, égratignures, variations de couleur
-- **Fonds complexes** — marques d'usinage, textures répétitives
+- **Défauts subtils** - fissures pixel-minces, égratignures, variations de couleur
+- **Fonds complexes** - marques d'usinage, textures répétitives
 
 Ce projet compare deux familles d'approches sur MVTec AD :
-- **Reconstruction** — Autoencoders convolutifs (V1, V2)
-- **Représentation** — PatchCore avec embeddings multiscales ResNet18
+- **Reconstruction** - Autoencoders convolutifs (V1, V2)
+- **Représentation** - PatchCore avec embeddings multiscales ResNet18
 
 ---
 
@@ -67,8 +67,8 @@ Ce projet compare deux familles d'approches sur MVTec AD :
 
 ### Autoencoder (approche par reconstruction)
 Entraîner un autoencoder CNN uniquement sur des images normales. Au test, une erreur de reconstruction élevée signale une anomalie. Deux architectures comparées :
-- **V1** — encodeur/décodeur simple (3 couches conv)
-- **V2** — architecture plus profonde avec décodeur par upsampling
+- **V1** - encodeur/décodeur simple (3 couches conv)
+- **V2** - architecture plus profonde avec décodeur par upsampling
 
 **Limite fondamentale** : un modèle qui reconstruit trop bien va aussi reconstruire les anomalies, ce qui dégrade la détection.
 
@@ -82,7 +82,7 @@ Entraîner un autoencoder CNN uniquement sur des images normales. Au test, une e
 
 ## 📊 Résultats
 
-### Catégorie Capsule — comparaison des méthodes
+### Catégorie Capsule - comparaison des méthodes
 
 | Méthode | AUROC mean | AUROC max | AUROC topk |
 |---------|-----------|-----------|------------|
@@ -90,7 +90,7 @@ Entraîner un autoencoder CNN uniquement sur des images normales. Au test, une e
 | AE V2 (reconstruction) | 0.563 | 0.613 | 0.615 |
 | **PatchCore (représentation)** | **0.876** | **0.941** | **0.938** |
 
-### Benchmark PatchCore — 15 catégories MVTec
+### Benchmark PatchCore - 15 catégories MVTec
 
 ![Benchmark AUROC](outputs/figures/benchmark_auroc_15categories.png)
 
@@ -111,7 +111,7 @@ Entraîner un autoencoder CNN uniquement sur des images normales. Au test, une e
 | transistor | 0.945 | 0.397 |
 | wood | 0.991 | 0.383 |
 | zipper | 0.944 | 0.327 |
-| **Moyenne** | **0.957** | — |
+| **Moyenne** | **0.957** | - |
 
 Les seuils sont calculés par l'**indice de Youden** (maximise TPR − FPR sur le dataset test).
 
@@ -148,8 +148,6 @@ industrial-anomaly-detection/
 │   └── 05_final_comparison.ipynb
 ├── outputs/
 │   ├── figures/                # Graphiques et visualisations
-│   ├── memory_banks/           # Memory banks brutes (.pt)
-│   │   └── ready/              # Memory banks coreset précalculées
 │   └── metrics/                # Résultats JSON
 ├── pyproject.toml
 └── README.md
@@ -227,7 +225,7 @@ Ouvrir `http://localhost:8501` dans votre navigateur.
 ## 📚 Références
 
 - **PatchCore** : Roth et al., *Towards Total Recall in Industrial Anomaly Detection*, CVPR 2022. [arxiv](https://arxiv.org/abs/2106.08265)
-- **MVTec AD** : Bergmann et al., *MVTec AD — A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection*, CVPR 2019.
+- **MVTec AD** : Bergmann et al., *MVTec AD - A Comprehensive Real-World Dataset for Unsupervised Anomaly Detection*, CVPR 2019.
 - **Focal Loss** : Lin et al., *Focal Loss for Dense Object Detection*, ICCV 2017.
 - **BAGAN** : Mariani et al., *BAGAN: Data Augmentation with Balancing GAN*, 2018.
 
@@ -235,5 +233,5 @@ Ouvrir `http://localhost:8501` dans votre navigateur.
 
 ## 👤 Auteur
 
-**Machoudi ADEGOUNTE** — M2 Mathématiques Appliquées, Université Toulouse III Paul Sabatier  
+**Machoudi ADEGOUNTE** - M2 Mathématiques Appliquées, Université Toulouse III Paul Sabatier  
 Ingénieur R&D ML @ Pikairos | Candidat Doctorat
