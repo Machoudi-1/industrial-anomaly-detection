@@ -1,0 +1,12 @@
+{
+    "category": "capsule",
+    "extractor_type": "multiscale",
+    "use_random_coreset": false,
+    "coreset_ratio": null,
+    "k_ratio": 0.01,
+    "results": {
+        "mean": 0.8763462305544476,
+        "max": 0.9413641802951735,
+        "topk_mean": 0.9381731152772238
+    }
+}

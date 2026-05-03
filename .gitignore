@@ -1,25 +1,40 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
 
 # Environments
 .venv/
 
 # Jupyter
 .ipynb_checkpoints/
-exploration.ipynb
 notebooks/.ipynb_checkpoints/
+notebooks/colab_prepare_banks.ipynb
+exploration.ipynb
 
-# Data & Outputs
+# Data
 data/
-outputs/
 
-# models/ weights
+# Modeles
 *.pth
-*.pt
+models/checkpoints/
 
-# OS/editor 
+# Outputs 
+outputs/*.png
+outputs/*.json
+
+# Memory banks
+outputs/memory_banks/
+
+# Tables 
+outputs/tables/
+
+# Metrics 
+outputs/metrics/*_train.json
+
+# Figures 
+outputs/figures/*_loss_curve.png
+
+# OS/editor
 .DS_Store
 *.code-workspace
-
-notebooks/colab_prepare_banks.ipynb

@@ -1,0 +1,10 @@
+{
+    "category": "capsule",
+    "model_version": "v1",
+    "checkpoint": "../models/checkpoints/20260426_130047_capsule_autoencoder_v1.pth",
+    "results": {
+        "mean": 0.3977,
+        "max": 0.627,
+        "topk_mean": 0.556
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "category": "capsule",
+    "model_version": "v2",
+    "epochs": 30,
+    "results": {
+        "mean": 0.5628240925408855,
+        "max": 0.613083366573594,
+        "topk_mean": 0.6146788990825688
+    }
+}

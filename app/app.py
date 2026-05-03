@@ -3,12 +3,9 @@ app.py
 ------
 Streamlit application for PatchCore industrial anomaly detection.
 
-Improvements over v1:
-- Greedy coreset sampling (better memory bank coverage than random)
-- L2 normalization of embeddings (improves distance discrimination)
-- Per-category optimal thresholds calibrated from benchmark scores
-- Multi-image upload support
-- Cleaner UI with inference timing
+Prerequisites:
+    Run prepare_memory_banks.py first to build the ready memory banks:
+        poetry run python scripts/prepare_memory_banks.py
 
 Usage:
     poetry run streamlit run app/app.py
@@ -18,7 +15,6 @@ import sys
 import time
 from pathlib import Path
 
-# ── Path setup ────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -34,124 +30,119 @@ from models.patchcore import (
     extract_patch_embeddings,
     compute_patchwise_distances,
     patch_distances_to_maps,
-    greedy_coreset_sampling,
 )
 from utils.normalization import preprocess_image
 
-# ── Constants ─────────────────────────────────────────────────
-MEMORY_BANK_DIR = ROOT / "outputs" / "memory_banks"
+# Constants
+READY_DIR = ROOT / "outputs" / "memory_banks" / "ready"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 ALL_CATEGORIES = [
-    "bottle", "cable", "capsule", "carpet", "grid",
-    "hazelnut", "leather", "metal_nut", "pill", "screw",
-    "tile", "toothbrush", "transistor", "wood", "zipper",
+    "bottle",
+    "cable",
+    "capsule",
+    "carpet",
+    "grid",
+    "hazelnut",
+    "leather",
+    "metal_nut",
+    "pill",
+    "screw",
+    "tile",
+    "toothbrush",
+    "transistor",
+    "wood",
+    "zipper",
 ]
 
-# Benchmark AUROC (topk_mean) from 04_multicategory_benchmark
 AUROC_REFERENCE = {
-    "bottle":     0.9992,
-    "cable":      0.8564,
-    "capsule":    0.8783,
-    "carpet":     0.8941,
-    "grid":       0.5773,
-    "hazelnut":   0.9996,
-    "leather":    0.9253,
-    "metal_nut":  0.9462,
-    "pill":       0.7621,
-    "screw":      0.8965,
-    "tile":       0.8413,
+    "bottle": 0.9992,
+    "cable": 0.8564,
+    "capsule": 0.8783,
+    "carpet": 0.8941,
+    "grid": 0.5773,
+    "hazelnut": 0.9996,
+    "leather": 0.9253,
+    "metal_nut": 0.9462,
+    "pill": 0.7621,
+    "screw": 0.8965,
+    "tile": 0.8413,
     "toothbrush": 0.9611,
     "transistor": 0.8592,
-    "wood":       0.9833,
-    "zipper":     0.9309,
+    "wood": 0.9833,
+    "zipper": 0.9309,
 }
 
-# Per-category thresholds calibrated from benchmark observations.
-# Higher AUROC -> tighter threshold (model more reliable).
-# Lower AUROC  -> looser threshold (avoid false positives).
+# Per-category thresholds calibrated from benchmark results
 OPTIMAL_THRESHOLDS = {
-    "bottle":     0.68,
-    "cable":      0.62,
-    "capsule":    0.63,
-    "carpet":     0.62,
-    "grid":       0.58,
-    "hazelnut":   0.70,
-    "leather":    0.64,
-    "metal_nut":  0.65,
-    "pill":       0.60,
-    "screw":      0.63,
-    "tile":       0.62,
-    "toothbrush": 0.67,
-    "transistor": 0.62,
-    "wood":       0.68,
-    "zipper":     0.65,
+    "bottle": 0.351,
+    "cable": 0.402,
+    "capsule": 0.296,
+    "carpet": 0.347,
+    "grid": 0.353,
+    "hazelnut": 0.419,
+    "leather": 0.338,
+    "metal_nut": 0.385,
+    "pill": 0.368,
+    "screw": 0.349,
+    "tile": 0.385,
+    "toothbrush": 0.367,
+    "transistor": 0.397,
+    "wood": 0.383,
+    "zipper": 0.327,
 }
 
-CORESET_RATIO = 0.1
 OVERLAY_ALPHA = 0.45
-TOPK_RATIO    = 0.01
+TOPK_RATIO = 0.01
 
 
-# ── Cached resources ──────────────────────────────────────────
+# Cached resources
+
 
 @st.cache_resource(show_spinner="Loading feature extractor...")
 def load_extractor() -> MultiScaleFeatureExtractor:
-    """Load and freeze the ResNet18 multiscale feature extractor."""
     extractor = MultiScaleFeatureExtractor().to(DEVICE)
     extractor.eval()
     return extractor
 
 
-@st.cache_resource(show_spinner="Building memory bank...")
-def load_memory_bank(category: str) -> tuple[torch.Tensor | None, int | None]:
+@st.cache_resource(show_spinner="Loading memory bank...")
+def load_memory_bank(category: str) -> tuple[torch.Tensor | None, dict]:
     """
-    Load, normalize and apply greedy coreset to the memory bank.
+    Load the precomputed ready memory bank for a category.
 
-    Why normalize?
-        L2 normalization maps embeddings onto the unit hypersphere.
-        This makes distances scale-invariant and improves discrimination
-        between normal and anomalous patches.
-
-    Why greedy coreset?
-        Greedy k-center sampling maximizes coverage of the embedding space.
-        Every original patch is within distance d of some selected patch,
-        where d is minimized. This reduces false positives compared to
-        random sampling which may miss rare normal patches.
+    The ready memory banks are produced by scripts/prepare_memory_banks.py.
+    They are already L2-normalized and greedy-coreset sampled - loading
+    is instantaneous, no computation needed at startup.
     """
-    pattern = f"*_{category}_multiscale.pt"
-    matches = list(MEMORY_BANK_DIR.glob(pattern))
-    if not matches:
-        return None, None
+    ready_path = READY_DIR / f"{category}_ready.pt"
 
-    pt_path = max(matches, key=lambda p: p.stat().st_mtime)
-    saved = torch.load(pt_path, map_location="cpu")
+    if not ready_path.exists():
+        return None, {}
+
+    saved = torch.load(ready_path, map_location="cpu")
     memory_bank = saved["memory_bank"]
-    full_size = memory_bank.shape[0]
 
-    # L2 normalize
-    memory_bank = F.normalize(memory_bank, dim=1)
-
-    # Greedy coreset
-    if memory_bank.shape[0] > 10_000:
-        memory_bank = greedy_coreset_sampling(
-            memory_bank,
-            sampling_ratio=CORESET_RATIO,
-            pre_sample_ratio=0.2,
-        )
-
-    return memory_bank, full_size
+    meta = {
+        "full_size": saved.get("full_size", "?"),
+        "coreset_ratio": saved.get("coreset_ratio", "?"),
+        "coreset_size": memory_bank.shape[0],
+        "embedding_dim": memory_bank.shape[1],
+        "normalized": saved.get("normalized", True),
+        "coreset_method": saved.get("coreset_method", "greedy"),
+    }
+    return memory_bank, meta
 
 
-# ── Inference ─────────────────────────────────────────────────
+# Inference
+
 
 def preprocess_pil(image: Image.Image) -> torch.Tensor:
     """Convert PIL image to preprocessed tensor (1, C, 256, 256)."""
     image = image.convert("RGB")
     arr = np.array(image, dtype=np.uint8)
     tensor = torch.from_numpy(arr).permute(2, 0, 1)
-    processed = preprocess_image(tensor)
-    return processed.unsqueeze(0)
+    return preprocess_image(tensor).unsqueeze(0)
 
 
 def run_inference(
@@ -176,7 +167,7 @@ def run_inference(
     B, C, H, W = feature_map.shape
     test_patches = extract_patch_embeddings(feature_map)
 
-    # L2 normalize test patches — same space as memory bank
+    # L2 normalize test patches - same space as memory bank
     test_patches = F.normalize(test_patches, dim=1)
 
     patch_distances = compute_patchwise_distances(
@@ -191,11 +182,9 @@ def run_inference(
     flat = anomaly_map.view(1, -1)
     k = max(1, int(TOPK_RATIO * flat.shape[1]))
     raw_score = float(torch.topk(flat, k, dim=1).values.mean())
-
-    # Soft normalization to [0, 1]
     score_normalized = float(np.clip(raw_score / (raw_score + 1.0), 0, 1))
 
-    # Upsample to 256x256
+    # Upsample to 256×256
     anomaly_map_up = F.interpolate(
         anomaly_map.unsqueeze(1),
         size=(256, 256),
@@ -203,17 +192,16 @@ def run_inference(
         align_corners=False,
     ).squeeze()
 
-    # Per-image min-max normalization for visualization
     a_min, a_max = anomaly_map_up.min(), anomaly_map_up.max()
     heatmap = ((anomaly_map_up - a_min) / (a_max - a_min + 1e-8)).cpu().numpy()
 
-    elapsed = time.time() - t0
-    return score_normalized, heatmap, elapsed
+    return score_normalized, heatmap, time.time() - t0
 
 
 def make_overlay(original: Image.Image, heatmap: np.ndarray) -> np.ndarray:
-    """Blend jet heatmap over original image."""
-    orig = np.array(original.convert("RGB").resize((256, 256)), dtype=np.float32) / 255.0
+    orig = (
+        np.array(original.convert("RGB").resize((256, 256)), dtype=np.float32) / 255.0
+    )
     colored = plt.colormaps["jet"](heatmap)[..., :3]
     blended = (1 - OVERLAY_ALPHA) * orig + OVERLAY_ALPHA * colored
     return (np.clip(blended, 0, 1) * 255).astype(np.uint8)
@@ -227,8 +215,9 @@ def render_result(
     threshold: float,
     category: str,
     filename: str,
+    meta: dict,
 ) -> None:
-    """Render results for one uploaded image."""
+    """Render detection results for one image."""
     is_anomaly = score >= threshold
 
     st.markdown(f"#### `{filename}`")
@@ -259,7 +248,7 @@ def render_result(
             delta_color="off",
         )
         st.progress(float(score))
-        st.caption(f"Inference time: {elapsed:.2f}s")
+        st.caption(f"Inference: {elapsed:.2f}s")
 
     with verdict_col:
         if is_anomaly:
@@ -281,12 +270,12 @@ def render_result(
 |-----------|-------|
 | Category | `{category}` |
 | Extractor | MultiScale ResNet18 (layer2 + layer3) |
-| Embedding dim | 384 (128 layer2 + 256 layer3) |
-| Normalization | L2 on memory bank and test patches |
-| Coreset method | Greedy k-center ({CORESET_RATIO*100:.0f}%) |
-| Scoring | Top-{TOPK_RATIO*100:.0f}% patch distances (mean) |
-| Anomaly score | {score:.4f} (normalized) |
-| Threshold | {threshold:.2f} (calibrated for {category}) |
+| Embedding dim | {meta.get('embedding_dim', 384)} |
+| Normalization | L2 (memory bank + test patches) |
+| Coreset method | {meta.get('coreset_method', 'greedy')} k-center |
+| Coreset size | {meta.get('coreset_size', '?'):,} patches ({meta.get('coreset_ratio', '?') and f"{meta['coreset_ratio']*100:.0f}%" } of {meta.get('full_size', '?'):,}) |
+| Anomaly score | {score:.4f} |
+| Threshold | {threshold:.2f} (calibrated for `{category}`) |
 | Device | `{DEVICE}` |
 | Benchmark AUROC | {AUROC_REFERENCE[category]:.3f} |
 | Inference time | {elapsed:.2f}s |
@@ -295,7 +284,8 @@ def render_result(
     st.divider()
 
 
-# ── Main ──────────────────────────────────────────────────────
+# Main
+
 
 def main():
     st.set_page_config(
@@ -305,10 +295,10 @@ def main():
     )
 
     st.title("🔍 Industrial Anomaly Detection")
-    st.markdown("**PatchCore** — ResNet18 multiscale | MVTec AD benchmark")
+    st.markdown("**PatchCore** - ResNet18 multiscale | MVTec AD benchmark")
     st.divider()
 
-    # ── Sidebar ──
+    #  Sidebar
     with st.sidebar:
         st.header("Configuration")
 
@@ -321,15 +311,14 @@ def main():
 
         st.caption(f"Benchmark AUROC: **{AUROC_REFERENCE[category]:.3f}**")
 
-        default_threshold = OPTIMAL_THRESHOLDS[category]
         threshold = st.slider(
             "Detection threshold",
             min_value=0.0,
             max_value=1.0,
-            value=default_threshold,
+            value=OPTIMAL_THRESHOLDS[category],
             step=0.01,
             help=(
-                "Score above this value is classified as Defective. "
+                "Score above this value → Defective. "
                 "Default is calibrated per category. "
                 "Lower = more sensitive. Higher = more conservative."
             ),
@@ -339,7 +328,7 @@ def main():
         st.markdown("**How it works**")
         st.caption(
             "PatchCore extracts local patch features via a pretrained ResNet18. "
-            "Each patch is compared to a memory bank of normal patches — "
+            "Each patch is compared to a memory bank of normal patches - "
             "high distance signals an anomaly. "
             "The heatmap shows where the defect is localized."
         )
@@ -349,29 +338,30 @@ def main():
         )
         st.caption(f"Device: `{DEVICE}`")
 
-    # ── Load models ──
+    # Load models
     extractor = load_extractor()
-    memory_bank, full_size = load_memory_bank(category)
+    memory_bank, meta = load_memory_bank(category)
 
     if memory_bank is None:
-        st.error(
-            f"No memory bank found for **{category}**. "
-            "Run the benchmark notebook with `SAVE_MEMORY_BANKS = True` first."
+        st.error(f"No ready memory bank found for **{category}**.")
+        st.info(
+            "Run the preparation script first:\n"
+            "```\npoetry run python scripts/prepare_memory_banks.py\n```"
         )
         st.stop()
 
     st.success(
-        f"Ready — {memory_bank.shape[0]:,} patches "
-        f"(greedy coreset {CORESET_RATIO*100:.0f}% of {full_size:,}) "
-        f"× {memory_bank.shape[1]} dims"
+        f"Ready - {meta['coreset_size']:,} patches "
+        f"(greedy coreset {meta['coreset_ratio']*100:.0f}% of {meta['full_size']:,}) "
+        f"× {meta['embedding_dim']} dims"
     )
 
-    # ── Multi-image upload ──
+    # Multi-image upload
     uploaded_files = st.file_uploader(
         "Upload one or more images",
         type=["png", "jpg", "jpeg"],
         accept_multiple_files=True,
-        help="You can upload multiple images at once.",
+        help="Upload images of the selected industrial part. Multiple files supported.",
     )
 
     if not uploaded_files:
@@ -379,7 +369,7 @@ def main():
         return
 
     st.divider()
-    st.markdown(f"### Results — {len(uploaded_files)} image(s)")
+    st.markdown(f"### Results - {len(uploaded_files)} image(s)")
 
     for uploaded in uploaded_files:
         original = Image.open(uploaded)
@@ -398,6 +388,7 @@ def main():
             threshold=threshold,
             category=category,
             filename=uploaded.name,
+            meta=meta,
         )
 
 
