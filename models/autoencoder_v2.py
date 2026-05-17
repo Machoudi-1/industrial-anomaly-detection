@@ -1,3 +1,31 @@
+"""
+autoencoder_v2.py
+-----------------
+Improved convolutional autoencoder (V2) for unsupervised anomaly detection.
+
+Architecture:
+    Encoder : 3 blocks (Conv -> Conv -> MaxPool) + bottleneck (Conv -> Conv)
+              (B, 3, 256, 256) -> (B, 256, 32, 32)
+    Decoder : 3 upsampling blocks (Upsample -> Conv -> Conv) + final Conv
+              (B, 256, 32, 32) -> (B, 3, 256, 256)
+
+Improvements over V1 (autoencoder.py):
+    - Deeper encoder with double convolutions per block
+    - MaxPool downsampling instead of strided convolutions (better feature preservation)
+    - Bilinear upsampling in the decoder instead of ConvTranspose2d (smoother reconstructions)
+    - Richer bottleneck at 256 channels
+
+Key finding:
+    Despite better reconstruction quality (lower MSE), AUROC only reached 0.613 on MVTec AD.
+    Root cause: a well-trained model reconstructs anomalies accurately too,
+    which is the fundamental ceiling of all reconstruction-based approaches.
+    This motivated the switch to PatchCore (patchcore.py).
+
+Usage:
+    model = AutoEncoderV2()
+    output = model(image_tensor)  # shape: (B, 3, 256, 256)
+"""
+
 import torch
 from torch import nn
 

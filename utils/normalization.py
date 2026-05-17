@@ -1,3 +1,20 @@
+"""
+normalization.py
+----------------
+Image preprocessing utilities shared across all models and scripts.
+
+Provides a single entry point (preprocess_image) to ensure consistent
+preprocessing throughout the project: autoencoder training, PatchCore
+inference, and the Streamlit app.
+
+Pipeline: Resize → float32 → normalize to [0, 1]
+
+Usage:
+    from utils.normalization import preprocess_image
+
+    tensor = preprocess_image(raw_tensor)  # shape: (C, 256, 256), values in [0, 1]
+"""
+
 import torch
 from torchvision import transforms
 

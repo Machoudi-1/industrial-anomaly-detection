@@ -1,3 +1,29 @@
+"""
+mvtec.py
+--------
+PyTorch Dataset for the MVTec Anomaly Detection (MVTec AD) benchmark.
+
+MVTec AD contains 15 industrial product categories, each with:
+    - a training set of defect-free images  (label = 0)
+    - a test set mixing normal and defective images (label = 0 or 1)
+
+Reference: Bergmann et al., "MVTec AD: A Comprehensive Real-World Dataset
+for Unsupervised Anomaly Detection", CVPR 2019.
+
+Usage:
+    from datasets.mvtec import MvtecAdDataset
+    from utils.normalization import preprocess_image
+
+    dataset = MvtecAdDataset(
+        root_dir="data/mvtec_ad",
+        category="capsule",
+        split="test",
+        transform=preprocess_image,
+    )
+    sample = dataset[0]
+    # keys: "image", "label", "defect_type", "image_path"
+"""
+
 import os
 import glob
 

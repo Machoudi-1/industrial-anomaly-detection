@@ -6,10 +6,10 @@ PatchCore anomaly detection pipeline.
 Components:
     - FeatureExtractor         : single-scale ResNet18 features (layer3)
     - MultiScaleFeatureExtractor: fused layer2 + layer3 features
-    - extract_patch_embeddings : feature map → patch matrix
+    - extract_patch_embeddings : feature map -> patch matrix
     - build_memory_bank        : build normal patch reference from train set
     - compute_patchwise_distances: nearest-neighbor distances (chunked, OOM-safe)
-    - patch_distances_to_maps  : flat distances → spatial anomaly maps
+    - patch_distances_to_maps  : flat distances -> spatial anomaly maps
     - random_coreset_sampling  : random subset of the memory bank
     - greedy_coreset_sampling  : k-center coreset (better coverage)
 """

@@ -1,3 +1,17 @@
+"""
+metrics.py
+----------
+Anomaly scoring utilities for autoencoder and PatchCore models.
+
+Provides:
+    - reduce_error_map       : reduce a spatial error map to one score per image
+    - compute_anomaly_scores : autoencoder inference loop over a full dataloader
+    - compute_patchcore_batch_scores : PatchCore scores for a single batch
+    - compute_patchcore_scores       : PatchCore inference loop over a full dataloader
+
+Supported reduction strategies: "mean", "max", "topk_mean".
+"""
+
 from typing import Literal, Tuple
 
 import torch
