@@ -10,6 +10,19 @@
 Détection d'anomalies non supervisée sur des images industrielles avec **PatchCore** (features multiscales ResNet18 + coreset greedy k-center), évalué sur le dataset [MVTec AD](https://www.mvtec.com/company/research/datasets/mvtec-ad).
 
 ---
+## 📋 Table des matières
+
+- [Démonstration](#️-démonstration)
+- [Problématique](#-problématique)
+- [Méthodes](#-méthodes)
+- [Résultats](#-résultats)
+- [Structure du projet](#-structure-du-projet)
+- [Installation](#️-installation)
+- [Utilisation](#-utilisation)
+- [Références](#-références)
+- [Auteur](#-auteur)
+
+---
 
 ## 🖥️ Démonstration
 

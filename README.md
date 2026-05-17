@@ -10,6 +10,19 @@
 Unsupervised anomaly detection on industrial images using **PatchCore** (ResNet18 multiscale features + greedy k-center coreset) benchmarked on the [MVTec AD dataset](https://www.mvtec.com/company/research/datasets/mvtec-ad).
 
 ---
+## 📋 Table of Contents
+
+- [Demo](#️-demo)
+- [Problem Statement](#-problem-statement)
+- [Methods](#-methods)
+- [Results](#-results)
+- [Project Structure](#-project-structure)
+- [Installation](#️-installation)
+- [Usage](#-usage)
+- [References](#-references)
+- [Author](#-author)
+
+---
 
 ## 🖥️ Demo
 
