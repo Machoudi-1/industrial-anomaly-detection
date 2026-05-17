@@ -13,9 +13,7 @@ Unsupervised anomaly detection on industrial images using **PatchCore** (ResNet1
 
 ## 🖥️ Demo
 
-| Detection result | Technical details |
-|:---:|:---:|
-| ![App screenshot](outputs/figures/app_screenshot.png) | ![Technical details](outputs/figures/app_technical_details.png) |
+![App screenshot](outputs/figures/app_screenshot.png)
 
 ### How to use the app
 
