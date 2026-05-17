@@ -5,7 +5,7 @@ Baseline convolutional autoencoder (V1) for unsupervised anomaly detection.
 
 Architecture:
     Encoder: 3 convolutional layers (3 -> 32 -> 64 -> 128 channels), stride 2, ReLU
-    Decoder: 3 transposed convolutional layers (128 → 64 → 32 → 3 channels), stride 2, Sigmoid
+    Decoder: 3 transposed convolutional layers (128 -> 64 -> 32 -> 3 channels), stride 2, Sigmoid
 
 Input:  RGB image tensor of shape (B, 3, H, W)
 Output: Reconstructed image tensor of shape (B, 3, H, W)
