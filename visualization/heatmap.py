@@ -1,3 +1,28 @@
+"""
+heatmap.py
+----------
+Visualization utilities for anomaly detection results.
+
+Provides plotting functions for:
+    - Training loss curves (autoencoder)
+    - Reconstruction comparisons (original vs reconstructed)
+    - Pixel-wise reconstruction error maps (autoencoder)
+    - PatchCore anomaly maps (raw and overlaid on input images)
+
+All functions are designed for use in Jupyter notebooks during
+experimentation. The Streamlit app (app/app.py) uses its own
+inline rendering via matplotlib and PIL.
+
+Usage:
+    from visualization.heatmap import (
+        plot_loss,
+        visualize_reconstructions,
+        visualize_reconstruction_error,
+        visualize_patchcore_maps,
+        visualize_patchcore_overlay,
+    )
+"""
+
 import logging
 from datetime import datetime
 from pathlib import Path
