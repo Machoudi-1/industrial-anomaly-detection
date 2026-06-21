@@ -15,7 +15,8 @@ dependencies = [
     "scikit-learn (>=1.8.0,<2.0.0)",
     "tqdm (>=4.67.3,<5.0.0)",
     "streamlit (>=1.56.0,<2.0.0)",
-    "fastapi[standard] (>=0.136.3,<0.137.0)"
+    "fastapi[standard] (>=0.136.3,<0.137.0)",
+    "sqlalchemy (>=2.0.51,<3.0.0)"
 ]
 
 
