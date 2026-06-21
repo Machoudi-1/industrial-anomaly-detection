@@ -38,3 +38,6 @@ outputs/figures/*_loss_curve.png
 # OS/editor
 .DS_Store
 *.code-workspace
+
+# Database
+*.db
