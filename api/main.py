@@ -4,8 +4,10 @@ api/main.py
 FastAPI endpoint for MVTec anomaly detection.
 """
 
+from typing import Annotated
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
+from sqlalchemy.orm import Session
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
 from api.inference import (
@@ -15,7 +17,9 @@ from api.inference import (
     run_inference,
     OPTIMAL_THRESHOLDS,
 )
+from api.database import Prediction, get_db
 from PIL import Image
+
 import io
 
 
@@ -56,6 +60,7 @@ def health():
 @app.post("/predict", response_model=PredictResponse)
 def predict(
     request: Request,
+    db: Annotated[Session, Depends(get_db)],
     image: UploadFile = File(..., description="Image file to inspect (PNG or JPEG)"),
     category: str = Form(
         ..., description="MVTec product category (e.g. 'bottle', 'capsule')"
@@ -65,6 +70,7 @@ def predict(
 
     Args:
         request (Request): FastAPI request object used to access the preloaded extractor.
+        db (Annotated[Session, Depends(get_db)]): Prediction database saved for monitoring
         image (UploadFile): Image file to inspect (PNG or JPEG).
         category (str): MVTec product category (e.g. 'bottle', 'capsule').
 
@@ -94,9 +100,22 @@ def predict(
 
     threshold = OPTIMAL_THRESHOLDS.get(category)
 
+    verdict = "Defective" if anomaly_score >= threshold else "Normal"
+    # Create prediction database
+    db_prediction = Prediction(
+        category=category,
+        filename=image.filename,
+        score=anomaly_score,
+        threshold=threshold,
+        verdict=verdict,
+        inference_time=inference_time,
+    )
+    db.add(db_prediction)
+    db.commit()
+    db.refresh(db_prediction)
     return {
         "score": anomaly_score,
-        "verdict": "Defective" if anomaly_score >= threshold else "Normal",
+        "verdict": verdict,
         "threshold": threshold,
         "inference_time": inference_time,
     }
