@@ -4,10 +4,21 @@ api/main.py
 FastAPI endpoint for MVTec anomaly detection.
 """
 
-from typing import Annotated
+from typing import Annotated, List, Literal
+from datetime import datetime
 from contextlib import asynccontextmanager
+from sqlalchemy import desc, asc
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException, Depends
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    Form,
+    Request,
+    HTTPException,
+    Depends,
+    Query,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 from api.inference import (
@@ -31,6 +42,18 @@ class PredictResponse(BaseModel):
     verdict: str
     threshold: float
     inference_time: float
+
+
+class PredictionHistoryItem(BaseModel):
+    """Schema for prediction hsitory"""
+
+    model_config = ConfigDict(from_attributes=True)
+    timestamp: datetime
+    category: str
+    filename: str
+    score: float
+    threshold: float
+    verdict: str
 
 
 #
@@ -119,3 +142,18 @@ def predict(
         "threshold": threshold,
         "inference_time": inference_time,
     }
+
+
+# History endpoint
+@app.get("/history", response_model=List[PredictionHistoryItem])
+def predictions_history(
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(5, ge=1, le=100),
+    sort_order: Literal["asc", "desc"] = Query(
+        "desc", description="Sort order: asc or desc"
+    ),
+):
+    query = db.query(Prediction)
+    if sort_order.lower() == "desc":
+        return query.order_by(desc(Prediction.timestamp)).limit(limit)
+    return query.order_by(asc(Prediction.timestamp)).limit(limit)
