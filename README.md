@@ -3,6 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.56-red)
+![Docker](https://img.shields.io/badge/Docker-✓-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 > 🇫🇷 Une version française de ce README est disponible dans [`README.fr.md`](README_fr.md)
@@ -132,6 +133,10 @@ Thresholds computed using the **Youden index** (maximizes TPR − FPR on the tes
 
 ```
 industrial-anomaly-detection/
+├── api/
+│   ├── database.py
+│   └── inference.py
+    └── main.py
 ├── app/
 │   └── app.py                  # Streamlit application
 ├── mvtec_dataset/
@@ -232,6 +237,56 @@ poetry run streamlit run app/app.py
 Then open `http://localhost:8501` in your browser.
 
 ---
+### 5. REST API
+
+The API exposes three endpoints:
+
+- `GET /health`: verify that the API is running
+- `POST /predict`: send an image and get an anomaly score and verdict
+- `GET /history`: retrieve the last predictions logged in the database
+
+**Example — predict from terminal:**
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -F "image=@data/mvtec_ad/capsule/test/crack/000.png" \
+  -F "category=capsule"
+```
+
+**Response:**
+
+```json
+{
+  "score": 0.348,
+  "verdict": "Defective",
+  "threshold": 0.296,
+  "inference_time": 0.177
+}
+```
+---
+### 6. Docker
+
+**Build the image:**
+
+```bash
+docker build -t mvtec-anomaly-api .
+```
+
+**Run the container:**
+
+```bash
+docker run -d --name mvtec-api -p 8000:8000 \
+  -v $(pwd)/predictions.db:/app/predictions.db \
+  mvtec-anomaly-api
+```
+
+The API is then available at `http://localhost:8000`.
+
+**Stop the container:**
+
+```bash
+docker stop mvtec-api
+```
 
 ## 📚 References
 
