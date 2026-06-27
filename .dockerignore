@@ -1,0 +1,17 @@
+# Folder
+.venv/
+data/
+outputs/figures/
+outputs/metrics/
+outputs/*.png
+outputs/*.json
+outputs/memory_banks/20260426_*
+notebooks/
+*/__pycache__/
+.git/
+
+# File 
+
+**/*.pyc
+# DB
+predictions.db
